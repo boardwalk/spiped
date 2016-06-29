@@ -18,14 +18,20 @@
 
 #include "pushbits.h"
 
+struct accept_state {
+	int * conndone;
+};
+
 static int
 callback_conndied(void * cookie)
 {
+	struct accept_state * A = cookie;
 
-	(void)cookie; /* UNUSED */
+	/* Quit event loop. */
+	*A->conndone = 1;
 
-	/* We're done! */
-	exit(0);
+	/* Success! */
+	return 0;
 }
 
 static void
@@ -62,6 +68,8 @@ main(int argc, char * argv[])
 	struct proto_secret * K;
 	const char * ch;
 	int s[2];
+	struct accept_state * A;
+	int conndone = 0;
 
 	WARNP_INIT;
 
@@ -162,11 +170,16 @@ main(int argc, char * argv[])
 		goto err2;
 	}
 
+	/* Allocate cookie. */
+	if ((A = malloc(sizeof(struct accept_state))) == NULL)
+		goto err2;
+	A->conndone = &conndone;
+
 	/* Set up a connection. */
 	if (proto_conn_create(s[1], sas_t, 0, opt_f, opt_g, opt_j, K, opt_o,
-	    callback_conndied, NULL) == NULL) {
+	    callback_conndied, A) == NULL) {
 		warnp("Could not set up connection");
-		goto err2;
+		goto err3;
 	}
 
 	/* Push bits from stdin into the socket. */
@@ -176,15 +189,21 @@ main(int argc, char * argv[])
 	}
 
 	/* Loop until we die. */
-	do {
-		if (events_run()) {
-			warnp("Error running event loop");
-			exit(1);
-		}
-	} while (1);
+	if (events_spin(&conndone)) {
+		warnp("Error running event loop");
+		exit(1);
+	}
 
-	/* NOTREACHED */
+	/* Clean up. */
+	events_shutdown();
+	free(A);
+	free(K);
 
+	/* Success! */
+	exit(0);
+
+err3:
+	free(A);
 err2:
 	free(K);
 err1:

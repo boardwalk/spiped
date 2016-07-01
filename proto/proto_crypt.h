@@ -1,6 +1,7 @@
 #ifndef _PCRYPT_H_
 #define _PCRYPT_H_
 
+#include <stddef.h>
 #include <stdint.h>
 #include <unistd.h>
 

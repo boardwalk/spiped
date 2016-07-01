@@ -3,7 +3,6 @@
 #include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include "crypto_entropy.h"
 #include "network.h"
